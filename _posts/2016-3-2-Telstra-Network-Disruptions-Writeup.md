@@ -30,7 +30,7 @@ As stated in the data description each training and test instance is associated 
 
 I discovered it when I wanted to look at some relationships between features and decided to start at locations and severity_types. But when I joined locations to severity types table I noticed that location column was sorted (it went all 1s, all 10s, 100s, ... 999s). So I thought that if rows are sorted by place, maybe they are also sorted by time, and I generated a feature by numbering rows inside each location group. The cv score drop was so sudden that I thought I made some mistake and somehow introduced leakage... But the LB agreed and even allowed me a brief stay in the Top10 =).
 
-Later I also added this variable normalized to (0,1) within each location. Here is an image of normalized count versus location. (green is fault_severity 0, blue is 0, red is 2, test samples are tiny black dots)
+Later I also added this variable normalized to (0,1) within each location. Here is an image of normalized count versus location. (green is fault_severity 0, blue is 1, red is 2, test samples are tiny black dots)
 
 ![](https://www.dropbox.com/s/58zp2zl6fyctfvx/p7.png?dl=1)
 
