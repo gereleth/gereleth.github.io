@@ -7,7 +7,7 @@ The recently finished [Telstra Network Disruptions](https://www.kaggle.com/c/tel
 
 The task was to predict the severity of service disruptions on Telstra's network. It was a 3-class classification problem evaluated on multiclass logloss. Here I'll share my approach to solving this problem.
 
-*I also plan to share my code and model configurations. I'll update the post with links once I'm done.*
+*Code and example notebooks can be found [here](https://github.com/gereleth/kaggle-telstra).*
 
 ## Features
 
@@ -123,6 +123,8 @@ In the previous competitions I often found myself overwhelmed by the amount of d
 [Sacred](https://github.com/IDSIA/sacred) is a tool for organizing, running and logging machine learning experiments. It comes with a mongo observer that saves the run's configuration and results to a mongo database. I found it very useful especially in conjunction with [Hyperopt](https://github.com/hyperopt/hyperopt) which is a Python library for hyperparameter optimization. 
 
 With these two tools I made practically no manual tuning of any models for this competition. I would just define a search space over hyperparameters and an objective function that used a Sacred experiment to calculate CV logloss. Then I set it to work overnight, and the next day all configurations and results are just one database query away.
+
+See a notebook with an example of random forest model tuning [here](https://github.com/gereleth/kaggle-telstra/blob/master/Automatic%20model%20tuning%20with%20Sacred%20and%20Hyperopt.ipynb)
 
 ## Conclusions
 
