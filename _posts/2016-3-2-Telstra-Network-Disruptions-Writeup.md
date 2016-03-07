@@ -20,17 +20,17 @@ The dataset for this competition seemed really simple at first but turned out to
 * Log features:
   * I transformed volume with log(1+x) because the range was very large.
   * I used log(1+volume) columns for common log features (40-60 columns), I also computed various aggregates of volume logarithm by id (count, min, mean, max, std, sum) and used 4 columns of label-encoded log features sorted by volume.
-* Target-dependent features: 
-  * I calculated probabilities of fault severities at every location. These were leave-one-out encoded, meaning that for each training sample I calculated the probability by counting all other training samples except this one and normalizing counts. To deal with zeros I also smoothed the result by adding the overall probabilities with a small weight. This was done inside the cross-validation loop to not use information from out-of-fold samples to avoid overfitting.
+* Target-dependent features:
+  * I calculated probabilities of fault severities at every location. These were leave-one-out encoded, meaning that for each training sample I calculated the probability by counting all other training samples except this one and normalizing counts. To deal with zeros I also smoothed the result by adding the overall probabilities with a small weight. This was done inside the cross-validation loop to not use information from out-of-fold samples to avoid overfitting. *This has raised some questions, so I'll point to the relevant code which is [here](https://github.com/gereleth/kaggle-telstra/blob/master/src/telstra_data.py) starting at line 244.*
   * I also tried creating similar aggregates based on events and resources, but that gave me no gains in CV scores.
 
 ### The magic feature
 
-As stated in the data description each training and test instance is associated with a location and a time point. Timing information was not explicitly provided but it turned out that it was possible to recover this information from the order of rows in some of the data files. This was referred to on the forums as "the magic feature" as it provided a great boost to the classifier performance. 
+As stated in the data description each training and test instance is associated with a location and a time point. Timing information was not explicitly provided but it turned out that it was possible to recover this information from the order of rows in some of the data files. This was referred to on the forums as "the magic feature" as it provided a great boost to the classifier performance.
 
 I discovered it when I wanted to look at some relationships between features and decided to start at locations and severity_types. But when I joined locations to severity types table I noticed that location column was sorted (it went all 1s, all 10s, 100s, ... 999s). So I thought that if rows are sorted by place, maybe they are also sorted by time, and I generated a feature by numbering rows inside each location group. The cv score drop was so sudden that I thought I made some mistake and somehow introduced leakage... But the LB agreed and even allowed me a brief stay in the Top10 =).
 
-Later I also added this variable normalized to (0,1) within each location. Here is an image of normalized count versus location. (green is fault_severity 0, blue is 1, red is 2, test samples are tiny black dots)
+Later I also added this variable normalized to (0,1) within each location. Here is an image of normalized count versus location. (green is fault_severity 0, blue is 1, red is 2, test samples are tiny black dots). *See [this notebook](https://github.com/gereleth/kaggle-telstra/blob/master/Discovering%20the%20magic%20feature.ipynb) for how this plot is made.*
 
 ![](https://www.dropbox.com/s/58zp2zl6fyctfvx/p7.png?dl=1)
 
@@ -50,7 +50,7 @@ Since the dataset was imbalanced and train set size rather small I used 10-fold 
 
 ### Random Forest
 
-I used RF models (`sklearn.ensemble.RandomForestClassifier`) for experiments evaluating new features, because RF is fast and fairly insensitive to tuning. 
+I used RF models (`sklearn.ensemble.RandomForestClassifier`) for experiments evaluating new features, because RF is fast and fairly insensitive to tuning.
 
 Cross-validation scores from RF and similar ET (`sklearn.ensemble.ExtraTreesClassifier`) models of 1000 trees with my final set of features were 0.45-0.46.
 
@@ -60,13 +60,15 @@ This was my first time seriously using a neural net model. I adapted [@entron's 
 
 The models were built with the keras library. I used the same model structure as @entron only modifying the input and output layers to suit this competition's problem. In between them were 2 dense layers with dropout.
 
-The models used embedding layers for locations and severity types, n-of-k encoded events and resources, columns of log feature volumes and other features described above. 
+The models used embedding layers for locations and severity types, n-of-k encoded events and resources, columns of log feature volumes and other features described above.
 
 In the first attempts to train the network I noticed heavy overfitting so I proceeded to add regularization coefficients wherever I could. Then layer sizes, dropouts and regularisation coefficients were tuned by hyperopt.
 
 Training time for a single model on my GPU was about 1 minute.
 
 Best configurations I found had single model performance in the range 0.460-0.465, but repeated runs of the same model with different random initializations blended quite nicely and an average of 10 runs was good for score of 0.445. A weighted average of 3 different configurations each having 10 runs gave me a score of 0.440.
+
+*Source code for my NN model is [here](https://github.com/gereleth/kaggle-telstra/blob/master/src/NNmodel.py) and parameter values of the three configurations used can be found [in this notebook](https://github.com/gereleth/kaggle-telstra/blob/master/NN%20and%20XGB%20models%20%2B%20my%20blending%20approach.ipynb).*
 
 ### XGBoost models
 
@@ -116,20 +118,21 @@ The local value of mlogloss on this combination was 0.42100, public LB score was
 
 Then I employed one more trick based on k nearest neighbors classifier. I used predictions from 4 selected models as features and fit a knn classifier with 100 distance-weighted neighbors. On its own the classifier scored around 0.44, but when blended with my final predictions with ratio 1/3 - 2/3 it dropped my local score and both LB scores by 0.001. Not much, but every little bit helps.
 
+*See [this notebook](https://github.com/gereleth/kaggle-telstra/blob/master/NN%20and%20XGB%20models%20%2B%20my%20blending%20approach.ipynb) for the code of my ensembling approach.*
+
 ### Workflow: using Sacred and Hyperopt
 
 In the previous competitions I often found myself overwhelmed by the amount of different models, settings, features I would try out. It was hard to keep track of everything and when I looked for a solution I found Sacred.
 
-[Sacred](https://github.com/IDSIA/sacred) is a tool for organizing, running and logging machine learning experiments. It comes with a mongo observer that saves the run's configuration and results to a mongo database. I found it very useful especially in conjunction with [Hyperopt](https://github.com/hyperopt/hyperopt) which is a Python library for hyperparameter optimization. 
+[Sacred](https://github.com/IDSIA/sacred) is a tool for organizing, running and logging machine learning experiments. It comes with a mongo observer that saves the run's configuration and results to a mongo database. I found it very useful especially in conjunction with [Hyperopt](https://github.com/hyperopt/hyperopt) which is a Python library for hyperparameter optimization.
 
 With these two tools I made practically no manual tuning of any models for this competition. I would just define a search space over hyperparameters and an objective function that used a Sacred experiment to calculate CV logloss. Then I set it to work overnight, and the next day all configurations and results are just one database query away.
 
-See a notebook with an example of random forest model tuning [here](https://github.com/gereleth/kaggle-telstra/blob/master/Automatic%20model%20tuning%20with%20Sacred%20and%20Hyperopt.ipynb)
+*I've shared a notebook with [an example of automatic model tuning](https://github.com/gereleth/kaggle-telstra/blob/master/Automatic%20model%20tuning%20with%20Sacred%20and%20Hyperopt.ipynb).*
 
 ## Conclusions
 
-I had a lot of fun participating in this competition. The small dataset size allowed for quick experimentation and trying a lot of things. I got some experience using the neural net models. I added Sacred and Hyperopt to my toolbox. 
+I had a lot of fun participating in this competition. The small dataset size allowed for quick experimentation and trying a lot of things. I got some experience using the neural net models. I added Sacred and Hyperopt to my toolbox.
 I combed the solution sharing thread for feature engineering ideas that never even occured to me before (hopefully they will next time). I even wrote and shared a lengthy report =).
 
 Thanks to Kaggle and Telstra for organizing this competition, congratulations to the winners and cheers to all participants!
-
