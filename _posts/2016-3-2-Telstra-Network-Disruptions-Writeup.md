@@ -94,6 +94,8 @@ This time I actually saw a performance improvement over the original random fore
 
 Refined RF and ET models had cv scores in the range 0.440-0.445, compared to 0.460 with a regular random forest having the same number of trees.
 
+*I've added a notebook with a demonstration of [RF refinement](https://github.com/gereleth/kaggle-telstra/blob/master/Global%20refinement%20of%20random%20forest.ipynb).*
+
 ### Postprocessing predictions
 
 I found that Random forest and Extra Trees predictions benefit from probability calibration. Two calibration methods described, for example, in "[Predicting good probabilities with supervised learning](http://www.datascienceassn.org/sites/default/files/Predicting%20good%20probabilities%20with%20supervised%20learning.pdf)" include Platt scaling and Isotonic regression.
